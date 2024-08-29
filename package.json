@@ -1,0 +1,21 @@
+{
+  "name": "nextjs-dictaphone",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.637.0",
+    "@aws-sdk/s3-request-presigner": "^3.637.0",
+    "express-ws": "^5.0.2",
+    "next": "14.2.7",
+    "pg": "^8.12.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "redis": "^4.7.0"
+  }
+}
