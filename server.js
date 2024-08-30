@@ -1,22 +1,25 @@
 import express from "express"
 import expressWs from "express-ws"
 import next from 'next'
-import { createClient } from 'redis'
 import { parse } from 'url'
 import * as db from './db.js'
-
-var dataClient = createClient({ url: process.env.REDIS_URL })
-var subClient = dataClient.duplicate()
+import { connectToRedis, publish, subscribe } from './pubsub.js'
 
 const { app, getWss } = expressWs(express())
 const port = 3000
+
+async function broadcast(clients = null) {
+  const clips = await db.query('SELECT name, text FROM clips ORDER BY id')
+  for (const wsClient of clients || getWss().clients) {
+    try { wsClient.send(JSON.stringify(clips.rows)) } catch { };
+  }
+}
 
 // Define web socket route
 app.ws('/websocket', async ws => {
   // update client on a best effort basis
   try {
-    const clips = await db.query('SELECT name, text FROM clips ORDER BY id')
-    ws.send(JSON.stringify(clips.rows))
+    broadcast([ws])
   } catch (error) {
     console.error(error)
   }
@@ -27,27 +30,9 @@ app.ws('/websocket', async ws => {
 
 const nextApp = next({ dev: process.env.NODE_ENV !== "production" })
 nextApp.prepare().then(async () => {
-  // Connect to Redis and subscribe to timestamp updates
-  await dataClient.connect()
+  await connectToRedis()
 
-  dataClient.on('error', err => {
-    console.error('Redis server error', err);
-    process.exit(1);
-  });
-
-  await subClient.connect();
-
-  subClient.on('error', err => {
-    console.error('Redis server error', err);
-    process.exit(1);
-  });
-
-  subClient.subscribe('dictaphone:timestamp', async _message => {
-    const clips = await db.query('SELECT name, text FROM clips ORDER BY id')
-    for (const wsClient of getWss().clients) {
-      try { wsClient.send(JSON.stringify(clips.rows)) } catch { };
-    }
-  });
+  subscribe(broadcast);
 
   // route requests to Next.js; publish timestamp on PUT and DELETE
   let handler = nextApp.getRequestHandler()
@@ -55,7 +40,7 @@ nextApp.prepare().then(async () => {
     await handler(request, response, parse(request.url, true))
 
     if (request.method === 'PUT' || request.method === 'DELETE') {
-      dataClient.publish('dictaphone:timestamp', new Date().toISOString())
+      await publish()
     }
   })
 })

@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation'
 import { NextResponse } from 'next/server'
-import {  GetObjectCommand, PutObjectCommand, DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { GetObjectCommand, PutObjectCommand, DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { buffer } from 'node:stream/consumers'
 import * as db from '../../../db.js'
+import { publish } from '../../../pubsub.js'
 
 const S3 = new S3Client()
 
@@ -56,6 +58,8 @@ export async function PUT(request) {
 
     await db.query("INSERT INTO clips (name) VALUES ($1)", [name])
 
+    if (process.env.WHISPER_URL) transcribe(name)
+
     return Response.json(data)
   } catch (err) {
     console.error(err)
@@ -81,4 +85,34 @@ export async function DELETE(request) {
     console.error(err.stack)
     return NextResponse.json(err, { status: 500, headers: { "Content-Type": "application/json" } })
   }
+}
+
+async function transcribe(name) {
+  // Fetch the presigned URL to download this clip
+  let clip_url = await getSignedUrl(
+    S3,
+    new GetObjectCommand({
+      Bucket: process.env.BUCKET_NAME,
+      Key: name
+    }),
+    { expiresIn: 3600 }
+  )
+
+  // Send the clip to the Whisper API for transcription
+  let input = { audio: clip_url }
+  let response = await fetch(process.env.WHISPER_URL, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ input })
+  })
+  let results = await response.json()
+
+  // Update the database with the transcription
+  await db.query(
+    "UPDATE clips SET text = $1 WHERE name = $2",
+    [results.output.transcription, name]
+  )
+
+  // Publish the update to all clients
+  await publish()
 }
