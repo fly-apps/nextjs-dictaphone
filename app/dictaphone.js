@@ -14,60 +14,6 @@ export function dictaphone() {
   let audioCtx;
   const canvasCtx = canvas.getContext("2d");
 
-  // delete button action: delete the clip from the UI and the server
-  async function deleteAction(e) {
-    const clip = e.target.closest(".clip");
-    const audio = clip.querySelector("audio");
-    if (audio.src.startsWith("blob:")) {
-      window.URL.revokeObjectURL(audio.src);
-    } else {
-      await fetch(audio.src, { method: "DELETE" });
-      await publish();
-    }
-    clip.remove();
-  }
-
-  // click on name action: rename the clip
-  // click on name action: rename the clip
-  async function renameAction(e) {
-    const clipLabel =e.target;
-    const existingName = clipLabel.textContent;
-    const newClipName = prompt("Enter a new name for your sound clip?");
-    if (newClipName === null || newClipName === "") {
-      clipLabel.textContent = existingName;
-    } else {
-      clipLabel.textContent = newClipName;
-
-      const clip = e.target.closest(".clip");
-      const audio = clip.querySelector("audio");
-      if (!audio.src.startsWith("blob:")) {
-        // not exactly the most efficient as it actually downloads and
-        // re-uploads the audio, but it works...
-        clip.style.opacity = 0.5;
-        let response = await fetch(audio.src);
-        if (response.ok) {
-          response = await fetch("/audio/" + encodeURI(newClipName), {
-            method: "PUT",
-            body: response.body,
-            headers: {
-              "Content-Type": response.headers.get("Content-Type"),
-            },
-          });
-
-          if (response.ok) {
-            await fetch("/audio/" + encodeURI(existingName), {
-              method: "DELETE"
-            });
-
-            clip.style.opacity = 1;
-
-            await publish();
-          }
-        }
-      }
-    }
-  };
-
   // Main block for doing the audio recording
   if (navigator.mediaDevices.getUserMedia) {
     console.log("The mediaDevices.getUserMedia() method is supported.");
@@ -82,7 +28,7 @@ export function dictaphone() {
           : "audio/webm; codecs=opus",
       });
 
-      visualize(stream); 
+      visualize(stream);
 
       record.onclick = function () {
         mediaRecorder.start();
@@ -142,11 +88,7 @@ export function dictaphone() {
         audio.src = audioURL;
         console.log("recorder stopped");
 
-        deleteButton.onclick = deleteAction;
-
-        clipLabel.onclick = renameAction;
-
-        let response = await fetch("/audio/" + encodeURI(clipLabel.textContent), {
+        await fetch("/audio/" + encodeURI(clipLabel.textContent), {
           method: "PUT",
           body: blob,
           headers: {
@@ -154,14 +96,9 @@ export function dictaphone() {
           }
         });
 
-        clipContainer.style.opacity = 1;
-        audio.preload = "none";
-        audio.type = mediaRecorder.mimeType;
-        audio.src = response.url;
+        clipContainer.remove();
 
         window.URL.revokeObjectURL(audioURL);
-
-        await publish();
       };
 
       mediaRecorder.ondataavailable = function (e) {
@@ -236,10 +173,51 @@ export function dictaphone() {
   };
 
   window.onresize();
+}
 
-  const clips = document.querySelectorAll('.sound-clips .clip');
-  for (const clip of clips) {
-    clip.querySelector('.delete').onclick = deleteAction;
-    clip.querySelector('p').onclick = renameAction;
+// delete button action: delete the clip from the UI and the server
+export async function deleteAction(e) {
+  const clip = e.target.closest(".clip");
+  const audio = clip.querySelector("audio");
+  if (audio.src.startsWith("blob:")) {
+    window.URL.revokeObjectURL(audio.src);
+  } else {
+    await fetch(audio.src, { method: "DELETE" });
   }
 }
+
+// click on name action: rename the clip
+export async function renameAction(e) {
+  const clipLabel = e.target;
+  const existingName = clipLabel.textContent;
+  const newClipName = prompt("Enter a new name for your sound clip?");
+  if (newClipName === null || newClipName === "") {
+    clipLabel.textContent = existingName;
+  } else {
+    clipLabel.textContent = newClipName;
+
+    const clip = e.target.closest(".clip");
+    const audio = clip.querySelector("audio");
+    if (!audio.src.startsWith("blob:")) {
+      // not exactly the most efficient as it actually downloads and
+      // re-uploads the audio, but it works...
+      clip.style.opacity = 0.5;
+      let response = await fetch(audio.src);
+      if (response.ok) {
+        response = await fetch("/audio/" + encodeURI(newClipName), {
+          method: "PUT",
+          body: response.body,
+          headers: {
+            "Content-Type": response.headers.get("Content-Type"),
+          },
+        });
+
+        if (response.ok) {
+          await fetch("/audio/" + encodeURI(existingName), {
+            method: "DELETE"
+          });
+        }
+      }
+    }
+  }
+};

@@ -1,25 +1,37 @@
 import { notFound } from 'next/navigation'
 import { NextResponse } from 'next/server'
-import { S3, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import {  GetObjectCommand, PutObjectCommand, DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { buffer } from 'node:stream/consumers'
+import * as db from '../../../db.js'
+
+const S3 = new S3Client()
 
 export async function GET(request) {
   try {
+    const name = decodeURIComponent(request.nextUrl.pathname.split('/')[2])
+
     const data = await S3.send(new GetObjectCommand({
       Bucket: process.env.BUCKET_NAME,
-      Key: request.params.name
+      Key: name
     }))
 
     let headers = { "Content-Type": data.ContentType }
 
-    let { start, end } = request.range()[0] || {}
-    if (end) {
+    let range = request.headers.range || "bytes=0-"
+    let positions = range.replace(/bytes=/, "").split("-")
+    let start = positions[0] ? parseInt(positions[0]) : 0
+    let end = positions[1] ? parseInt(positions[1]) : data.ContentLength - 1
+    if (start > 0 || end < data.ContentLength - 1) {
       end = Math.min(end, data.ContentLength - 1)
       if (end < start) return new NextResponse({ status: 416 })
 
       headers["Content-Range"] = `bytes ${start}-${end}/${data.ContentLength}`
       headers["Accept-Ranges"] = "bytes"
       headers["Content-Length"] = end - start + 1
-      return new NextResponse(await data.Body.transformToByteArray(), { headers, status: 206 })
+      return new NextResponse(
+        (await data.Body.transformToByteArray()).slice(start, end + 1),
+        { headers, status: 206 }
+      )
     } else {
       return new NextResponse(data.Body, { headers })
     }
@@ -33,16 +45,18 @@ export async function GET(request) {
 
 export async function PUT(request) {
   try {
+    const name = decodeURIComponent(request.nextUrl.pathname.split('/')[2])
+
     const data = await S3.send(new PutObjectCommand({
       Bucket: process.env.BUCKET_NAME,
-      Key: request.params.name,
-      Body: request.body,
+      Key: name,
+      Body: await buffer(request.body),
       ContentType: request.headers["content-type"]
     }))
 
-    await db.query("INSERT INTO clips (name) VALUES ($1)", [request.params.name])
+    await db.query("INSERT INTO clips (name) VALUES ($1)", [name])
 
-    return new NextResponse.json(data)
+    return Response.json(data)
   } catch (err) {
     console.error(err)
     console.error(err.stack)
@@ -52,14 +66,16 @@ export async function PUT(request) {
 
 export async function DELETE(request) {
   try {
+    const name = decodeURIComponent(request.nextUrl.pathname.split('/')[2])
+
     const data = await S3.send(new DeleteObjectCommand({
       Bucket: process.env.BUCKET_NAME,
-      Key: request.params.name
+      Key: name
     }))
 
-    await db.query("DELETE FROM clips WHERE name = $1", [request.params.name])
+    await db.query("DELETE FROM clips WHERE name = $1", [name])
 
-    return new NextResponse.json(data)
+    return Response.json(data)
   } catch (err) {
     console.error(err)
     console.error(err.stack)

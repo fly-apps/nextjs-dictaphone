@@ -1,10 +1,25 @@
 'use client'
 
-import { dictaphone} from "./dictaphone.js";
-import React, { useEffect } from 'react';
+import { dictaphone, deleteAction, renameAction } from "./dictaphone.js"
+import React, { useEffect } from 'react'
+import useWebSocket from "react-use-websocket"
 
 export default function Home() {
   useEffect(() => { dictaphone() }, []);
+
+  let lastJsonMessage = []
+  if (typeof window !== 'undefined') {
+    let protocol = window.location.protocol.replace('http', 'ws')
+
+    lastJsonMessage = useWebSocket.default(
+      `${protocol}//${window.location.host}/websocket`,
+      {
+        share: false,
+        shouldReconnect: () => true,
+        reconnectAttempts: Infinity
+      },
+    ).lastJsonMessage
+  }
 
   return <>
     <div className="wrapper">
@@ -21,19 +36,19 @@ export default function Home() {
       </section>
 
       <section className="sound-clips">
-      {([]).map(clip => (
-        <article className="clip">
-          <audio controls="" src="/audio/{ encodeURI(clip.name) }" preload="none"></audio>
-          <p>{ clip.name }</p>
-          <button className="delete">Delete</button>
-          <p className="text">{ clip.text }</p>
-        </article>
-      ))}
+        {(lastJsonMessage || []).map(clip => (
+          <article className="clip">
+            <audio controls src={`/audio/${encodeURI(clip.name)}`} preload="none"></audio>
+            <p onClick={renameAction}>{clip.name}</p>
+            <button className="delete" onClick={deleteAction}>Delete</button>
+            <p className="text">{clip.text}</p>
+          </article>
+        ))}
       </section>
     </div>
 
     <label htmlFor="toggle">❔</label>
-    <input type="checkbox" id="toggle"/>
+    <input type="checkbox" id="toggle" />
     <aside>
       <h2>Information</h2>
 
@@ -41,7 +56,7 @@ export default function Home() {
 
       <p>Icon courtesy of <a href="http://findicons.com/search/microphone">Find Icons</a>. Thanks to <a href="http://soledadpenades.com/">Sole</a> for the Oscilloscope code!</p>
 
-      <hr/>
+      <hr />
 
       <p><a href="https://github.com/fly-apps/node-dictaphone?tab=readme-ov-file#web-dictaphone-adapted-for-flyio">Rails Dictaphone</a> adds:</p>
 
@@ -54,7 +69,7 @@ export default function Home() {
 
       <p>Multiple replicas of this application can be deployed, even in multiple regions.</p>
 
-      <hr/>
+      <hr />
 
       <p>When <code>WHISPER_URL</code> is set:</p>
 
