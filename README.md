@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# [Web Dictaphone](http://todomvc.com), adapted for [fly.io](https://fly.io/)
 
-## Getting Started
+This is a fork of [mdn/dom-examples/media/web-dictaphone](https://github.com/mdn/dom-examples/tree/main/media/web-dictaphone#readme), with the following modifications:
 
-First, run the development server:
+* Next.js/React with a [custom server](https://nextjs.org/docs/pages/building-your-application/configuring/custom-server)
+* adds PostgreSQL to persist an ordered list of clips
+* adds Tigris support for storing audio files
+* adds Redis and WebSockets for broadcasting updates
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+With these changes multiple replicas of this application can be deployed, even in multiple regions.
+
+<p>When <code>WHISPER_URL</code> is set:</p>
+
+<ul>
+  <li>Clips that are stored in S3 Tigris will be sent to the <a href="https://github.com/rubys/cog-whisper/?tab=readme-ov-file#whisper-on-fly-gpus">Cog Whisper</a> application for transcription.</li>
+  <li>Transcription results will be stored in the PostgreSQL database.</li>
+  <li>Database updates will be broadcast to all connected clients.</li>
+</ul>
+
+# Deployment
+
+In an empty directory, run:
+
+```
+fly launch --from https://github.com/fly-apps/nextjs-dictaphone.git
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+If you visit this application, you will see a standard web dictaphone example.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+To create additional machines in other regions, run:
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+```
+fly scale count 3 --region dfw,waw,syd
+```
 
-## Learn More
+Note: By default, all machines will be configured to [automatically stop and start](https://fly.io/docs/apps/autostart-stop/).
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
