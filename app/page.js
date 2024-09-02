@@ -61,7 +61,7 @@ export default function Home() {
       <p><a href="https://github.com/fly-apps/node-dictaphone?tab=readme-ov-file#web-dictaphone-adapted-for-flyio">Rails Dictaphone</a> adds:</p>
 
       <ul>
-        <li><p>An <a href="https://expressjs.com/">Express JS</a> application with support for GET, POST, DELETE; including ranges</p></li>
+        <li><p>An <a href="https://nextjs.org/">Next.js</a> application with support for GET, POST, DELETE; including ranges</p></li>
         <li><p>A <a href="https://www.postgresql.org/">PostgreSQL</a> database to persist an ordered list of clips</p></li>
         <li><p>A <a href="https://www.tigrisdata.com/">Tigris</a> bucket for storing audio files</p></li>
         <li><p>An <a href="https://upstash.com/">Upstash</a> Redis db and <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">WebSockets</a> for broadcasting updates</p></li>
