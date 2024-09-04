@@ -58,7 +58,7 @@ export default function Home() {
 
       <hr />
 
-      <p><a href="https://github.com/fly-apps/node-dictaphone?tab=readme-ov-file#web-dictaphone-adapted-for-flyio">Next.js Dictaphone</a> adds:</p>
+      <p><a href="https://github.com/fly-apps/nextjs-dictaphone?tab=readme-ov-file#web-dictaphone-adapted-for-flyio">Next.js Dictaphone</a> adds:</p>
 
       <ul>
         <li><p>An <a href="https://nextjs.org/">Next.js</a> application with support for GET, POST, DELETE; including ranges</p></li>
